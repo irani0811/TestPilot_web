@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "maxDuration": 10
+    }
+  },
+  "env": {
+    "DATABASE_PATH": "/tmp/testpilot.db",
+    "LLM_TIMEOUT_SECONDS": "8"
+  }
+}

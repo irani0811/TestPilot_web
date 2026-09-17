@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Any
 
 APP_DIR = Path(__file__).resolve().parent
-configured_path = Path(os.getenv("DATABASE_PATH", "data/testpilot.db")).expanduser()
+# Vercel's deployment filesystem is read-only; /tmp is writable but ephemeral.
+# Set DATABASE_PATH explicitly when using a persistent volume on another host.
+default_db_path = "/tmp/testpilot.db" if os.getenv("VERCEL") else "data/testpilot.db"
+configured_path = Path(os.getenv("DATABASE_PATH", default_db_path)).expanduser()
 DB_PATH = configured_path if configured_path.is_absolute() else APP_DIR / configured_path
 
 

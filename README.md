@@ -78,3 +78,13 @@ Flask Web UI
 生产服务使用 Gunicorn，监听平台提供的 `PORT`，并通过 `/healthz` 接受健康检查。ChatECNU 令牌只从服务端环境变量读取，不会发送到浏览器或写入镜像。
 
 免费实例的本地 SQLite 数据可能在重新部署后重置，适合作品集演示。若需要长期保存分析历史，可在 Render 使用持久化磁盘并将 `DATABASE_PATH` 设置为挂载目录中的数据库文件。
+
+## 公网部署（Vercel Hobby）
+
+如果 Render 要求绑定银行卡，可改用 Vercel Hobby。项目已包含根目录 Flask 入口 `app.py`、`public/` 静态资源目录与 `vercel.json`：
+
+1. 将 GitHub 仓库导入 Vercel，Framework Preset 选择 **Other**，保持根目录为项目根目录。
+2. 在 Vercel 项目的 Environment Variables 中新增 `LLM_API_KEY`，值填 ChatECNU 令牌；同时确认 `LLM_API_URL` 为 `https://chat.ecnu.edu.cn/open/api/v1`、`LLM_MODEL` 为 `ecnu-plus`。
+3. 首次部署后即可通过 `https://项目名.vercel.app` 访问；`/healthz` 可用于检查服务状态。
+
+Vercel 版本使用 Flask Serverless Function。函数实例的 SQLite 写入位于 `/tmp`，适合公开作品集演示，分析历史不保证跨实例长期保存；AI 请求超时会自动回退到本地规则引擎。

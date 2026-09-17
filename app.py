@@ -16,6 +16,8 @@ from db import get_analysis, init_db, list_analyses, save_analysis
 from engine import analyze_requirements, build_summary, generate_test_cases
 from llm_provider import analyze_with_llm, available as llm_available
 
+# Keep Flask's static route for local/Docker runs; Vercel also serves the
+# mirrored public/ directory directly from its CDN.
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "testpilot-local-dev")
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", str(2 * 1024 * 1024)))

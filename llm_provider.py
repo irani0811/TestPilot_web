@@ -105,7 +105,7 @@ JSON schema:
                 "json_schema": {"name": "test_analysis", "schema": ANALYSIS_SCHEMA},
             },
         },
-        timeout=60,
+        timeout=float(os.getenv("LLM_TIMEOUT_SECONDS", "60")),
     )
     response.raise_for_status()
     content = response.json()["choices"][0]["message"]["content"].strip()
