@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+.venv
+__pycache__
+*.pyc
+data/*.db
+data/*.db-shm
+data/*.db-wal
+output
+tmp
+tests
+*.md
+start_testpilot.bat

@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: testpilot-ai
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: LLM_API_URL
+        value: https://chat.ecnu.edu.cn/open/api/v1
+      - key: LLM_MODEL
+        value: ecnu-plus
+      - key: LLM_API_KEY
+        sync: false
+      - key: DATABASE_PATH
+        value: data/testpilot.db
+      - key: MAX_CONTENT_LENGTH
+        value: "2097152"

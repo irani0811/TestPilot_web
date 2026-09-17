@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="TestPilot - 从产品需求到可执行测试资产的测试设计工作台">
+  <link rel="icon" href="data:,">
+  <title>{% block title %}TestPilot{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="{{ url_for('index') }}" aria-label="TestPilot 首页">
+        <span class="logo" aria-hidden="true">TP</span>
+        <span class="brand-copy">
+          <strong>TestPilot</strong>
+          <small>测试设计工作台</small>
+        </span>
+      </a>
+      <nav aria-label="主导航">
+        <a href="{{ url_for('index') }}#new-analysis">新建分析</a>
+        <a href="{{ url_for('index') }}#history">分析记录</a>
+        <span class="status-dot"><i></i>本地引擎可用</span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack" aria-live="polite">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <span>TestPilot · 需求解析、风险识别、用例设计与覆盖追踪</span>
+    <span>数据仅保存在本地 SQLite</span>
+  </footer>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

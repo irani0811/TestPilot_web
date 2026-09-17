@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}TestPilot · 测试设计工作台{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">TEST DESIGN WORKSPACE</span>
+    <h1>测试设计工作台</h1>
+    <p>把非结构化产品需求转成可评审、可追踪、可导出的测试资产。</p>
+  </div>
+  <form action="{{ url_for('demo') }}" method="post" id="demoForm">
+    <input type="hidden" name="mode" value="{{ 'llm' if llm_ready else 'rules' }}">
+    <button class="btn secondary" type="submit" id="demoButton">{{ "使用 AI 分析示例" if llm_ready else "查看完整示例" }}</button>
+  </form>
+</section>
+
+<section class="overview-grid" aria-label="工作台概览">
+  <div class="overview-item"><span>分析项目</span><strong>{{ overview.analysis_count }}</strong><small>本地记录</small></div>
+  <div class="overview-item"><span>测试资产</span><strong>{{ overview.case_count }}</strong><small>累计用例</small></div>
+  <div class="overview-item"><span>平均完整度</span><strong>{{ overview.avg_completeness }}<em>%</em></strong><small>规则化评估</small></div>
+  <div class="overview-item warning"><span>高风险需求</span><strong>{{ overview.high_risks }}</strong><small>优先评审</small></div>
+</section>
+
+<div class="workspace-layout" id="new-analysis">
+  <section class="panel intake-panel">
+    <div class="panel-head">
+      <div>
+        <span class="step-label">01 · 输入需求</span>
+        <h2>创建测试分析</h2>
+        <p>支持 PRD、用户故事、接口说明或功能清单。</p>
+      </div>
+      <button type="button" class="btn text-btn" onclick="fillSample()">填入示例 PRD</button>
+    </div>
+
+    <form action="{{ url_for('analyze') }}" method="post" id="analysisForm">
+      <div class="field">
+        <label for="project_name">项目名称</label>
+        <input id="project_name" name="project_name" placeholder="例如：团队任务看板 V1.0" maxlength="60" required>
+      </div>
+
+      <div class="field">
+        <div class="label-row">
+          <label for="requirement_text">产品需求 / PRD</label>
+          <span id="charCount">0 字</span>
+        </div>
+        <textarea id="requirement_text" name="requirement_text" rows="13" placeholder="粘贴需求内容，建议包含用户、操作、业务规则、异常处理和性能口径……" minlength="12" required></textarea>
+      </div>
+
+      <div class="form-footer">
+        <fieldset class="mode-selector">
+          <legend>分析方式</legend>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="rules" checked>
+            <span><b>本地规则引擎</b><small>稳定、可解释、无需 API</small></span>
+          </label>
+          <label class="mode-option {% if not llm_ready %}muted{% endif %}">
+            <input type="radio" name="mode" value="llm">
+            <span><b>AI 增强</b><small>{% if llm_ready %}已连接模型服务{% else %}未配置时自动降级{% endif %}</small></span>
+          </label>
+        </fieldset>
+        <button class="btn primary submit-btn" type="submit" id="submitButton">
+          <span>生成测试方案</span><i aria-hidden="true">→</i>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side-stack">
+    <section class="panel workflow-panel">
+      <div class="panel-head compact">
+        <div><span class="step-label">DELIVERABLE</span><h2>本次输出</h2></div>
+      </div>
+      <ol class="workflow-list">
+        <li><span>01</span><div><b>需求结构化</b><small>拆分、分类与口径缺口</small></div></li>
+        <li><span>02</span><div><b>风险优先级</b><small>风险依据与 P0/P1/P2</small></div></li>
+        <li><span>03</span><div><b>测试场景库</b><small>主流程、边界、异常、权限</small></div></li>
+        <li><span>04</span><div><b>质量洞察</b><small>完整度、覆盖与自动化建议</small></div></li>
+      </ol>
+    </section>
+
+    <section class="note-panel">
+      <strong>可离线完成</strong>
+      <p>本地模式不上传需求内容。分析结果保存在当前设备，并可导出 CSV、JSON 或 Markdown。</p>
+    </section>
+  </aside>
+</div>
+
+<section class="history-section" id="history">
+  <div class="section-heading">
+    <div><span class="eyebrow">RECENT ANALYSES</span><h2>最近分析</h2></div>
+    {% if analyses %}<span class="section-meta">共展示 {{ analyses|length }} 条</span>{% endif %}
+  </div>
+  {% if analyses %}
+  <div class="history-table-wrap">
+    <table class="history-table">
+      <thead><tr><th>项目</th><th>分析结果</th><th>方案完整度</th><th>风险</th><th>时间</th><th><span class="sr-only">操作</span></th></tr></thead>
+      <tbody>
+      {% for item in analyses %}
+        <tr>
+          <td><a class="project-link" href="{{ url_for('detail', analysis_id=item.id) }}"><span class="project-mark">{{ item.project_name[:1] }}</span><span><b>{{ item.project_name }}</b><small>#{{ item.id }} · {{ "AI 增强" if item.mode == "llm" else "本地引擎" }}</small></span></a></td>
+          <td><b>{{ item.summary.requirement_count }}</b> 项需求 · <b>{{ item.summary.case_count }}</b> 条用例</td>
+          <td><div class="inline-progress"><span style="width:{{ item.summary.get('completeness', item.summary.coverage) }}%"></span></div><small>{{ item.summary.get('completeness', item.summary.coverage) }}%</small></td>
+          <td>{% if item.summary.high_risk_requirements %}<span class="badge risk-high">{{ item.summary.high_risk_requirements }} 项高风险</span>{% else %}<span class="badge risk-low">未发现高风险</span>{% endif %}</td>
+          <td class="muted-text">{{ item.created_at[:16] }}</td>
+          <td><a class="row-action" href="{{ url_for('detail', analysis_id=item.id) }}" aria-label="查看 {{ item.project_name }}">→</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">✓</div>
+    <h3>还没有分析记录</h3>
+    <p>填入需求开始第一次分析，或先查看完整示例。</p>
+  </div>
+  {% endif %}
+</section>
+
+<script>
+const SAMPLE_PRD = {{ sample_prd|tojson }};
+</script>
+{% endblock %}

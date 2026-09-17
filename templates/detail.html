@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ item.project_name }} · TestPilot{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{{ url_for('index') }}">工作台</a><span>/</span><span>分析报告 #{{ item.id }}</span></div>
+
+<section class="report-heading">
+  <div>
+    <div class="title-line"><span class="report-status">{{ item.summary.get('release_level', '已完成') }}</span><span class="muted-text">分析报告 #{{ item.id }}</span></div>
+    <h1>{{ item.project_name }}</h1>
+    <p>{{ "AI 增强分析" if item.mode == "llm" else "本地规则引擎" }} · 创建于 {{ item.created_at[:16] }} · 数据保存在本地</p>
+  </div>
+  <div class="export-group">
+    <a class="btn secondary" href="{{ url_for('export', analysis_id=item.id, fmt='csv') }}">导出 CSV</a>
+    <a class="btn secondary" href="{{ url_for('export', analysis_id=item.id, fmt='json') }}">导出 JSON</a>
+    <a class="btn primary" href="{{ url_for('export', analysis_id=item.id, fmt='md') }}">导出评审报告</a>
+  </div>
+</section>
+
+<nav class="report-nav" aria-label="报告目录">
+  <a href="#overview">分析概览</a><a href="#requirements">需求评审</a><a href="#cases">测试用例</a><a href="#traceability">覆盖追踪</a>
+</nav>
+
+<section id="overview">
+  <div class="stat-grid">
+    <div class="stat-card featured"><span>方案完整度</span><strong>{{ item.summary.get('completeness', item.summary.coverage) }}<em>%</em></strong><small>覆盖、场景与口径综合评估</small></div>
+    <div class="stat-card"><span>需求覆盖率</span><strong>{{ item.summary.coverage }}<em>%</em></strong><small>{{ item.summary.requirement_count }} 项需求均有用例关联</small></div>
+    <div class="stat-card"><span>P0 用例</span><strong>{{ item.summary.get('p0_count', 0) }}</strong><small>上线前必须完成</small></div>
+    <div class="stat-card"><span>自动化候选</span><strong>{{ item.summary.get('automatable_count', 0) }}</strong><small>适合进入持续回归</small></div>
+  </div>
+
+  <div class="decision-banner {% if item.summary.high_risk_requirements %}attention{% endif %}">
+    <div class="decision-icon">!</div>
+    <div><span>发布关注建议</span><strong>{{ item.summary.get('release_advice', '请完成测试设计评审。') }}</strong></div>
+    <a href="#cases">查看 P0 用例 →</a>
+  </div>
+
+  <div class="insight-grid">
+    <section class="panel insight-panel">
+      <div class="panel-head compact"><div><span class="step-label">RISK</span><h2>需求风险分布</h2></div><span class="panel-total">{{ item.summary.requirement_count }} 项</span></div>
+      {% set total_req = item.summary.requirement_count if item.summary.requirement_count else 1 %}
+      {% for label, class_name in [('高','high'),('中','medium'),('低','low')] %}
+      {% set count = item.summary.risk_distribution.get(label, 0) %}
+      <div class="bar-row"><span>{{ label }}风险</span><div class="bar-track"><i class="bar-{{ class_name }}" style="width:{{ count / total_req * 100 }}%"></i></div><b>{{ count }}</b></div>
+      {% endfor %}
+      <p class="chart-note">风险等级由业务敏感度、权限与失败影响关键词综合判断。</p>
+    </section>
+
+    <section class="panel insight-panel">
+      <div class="panel-head compact"><div><span class="step-label">SCENARIO</span><h2>测试场景结构</h2></div><span class="panel-total">{{ item.summary.case_count }} 条</span></div>
+      {% set total_case = item.summary.case_count if item.summary.case_count else 1 %}
+      <div class="scenario-stack" aria-label="测试场景占比">
+        {% for label, class_name in [('主流程','flow'),('边界','edge'),('异常','error'),('权限','access')] %}
+        {% set count = item.summary.type_distribution.get(label, 0) %}
+        {% if count %}<i class="scenario-{{ class_name }}" style="width:{{ count / total_case * 100 }}%" title="{{ label }} {{ count }} 条"></i>{% endif %}
+        {% endfor %}
+      </div>
+      <div class="legend-grid">
+        {% for label, class_name in [('主流程','flow'),('边界','edge'),('异常','error'),('权限','access')] %}
+        <span><i class="legend-{{ class_name }}"></i>{{ label }} <b>{{ item.summary.type_distribution.get(label, 0) }}</b></span>
+        {% endfor %}
+      </div>
+      <p class="chart-note">每项需求至少覆盖主流程、边界与异常三类测试场景。</p>
+    </section>
+
+    <section class="panel insight-panel quick-panel">
+      <div class="panel-head compact"><div><span class="step-label">ACTION</span><h2>下一步行动</h2></div></div>
+      <ul class="action-list">
+        <li><span>1</span><p><b>确认需求口径</b><small>{{ item.summary.get('flagged_requirements', 0) }} 项存在待澄清信息</small></p></li>
+        <li><span>2</span><p><b>优先执行 P0</b><small>{{ item.summary.get('p0_count', 0) }} 条阻断级用例</small></p></li>
+        <li><span>3</span><p><b>纳入持续回归</b><small>{{ item.summary.get('automatable_count', 0) }} 条自动化候选</small></p></li>
+      </ul>
+    </section>
+  </div>
+</section>
+
+<section class="report-section" id="requirements">
+  <div class="section-heading">
+    <div><span class="eyebrow">REQUIREMENT REVIEW</span><h2>需求评审与风险拆解</h2><p>从需求原文、风险依据、口径缺口到可验证验收标准。</p></div>
+    <span class="section-meta">{{ item.summary.requirement_count }} 项需求</span>
+  </div>
+  <div class="requirement-list">
+    {% for req in item.requirements %}
+    <article class="requirement-item">
+      <div class="req-index">{{ "%02d"|format(loop.index) }}</div>
+      <div class="req-content">
+        <div class="req-meta"><span class="mono-tag">{{ req.id }}</span><span class="badge category">{{ req.category }}</span><span class="badge risk-{{ 'high' if req.risk == '高' else 'medium' if req.risk == '中' else 'low' }}">{{ req.risk }}风险</span></div>
+        <h3>{{ req.text }}</h3>
+        <div class="req-details">
+          <div><span>风险判断</span><p>{{ req.get('risk_reason', '按常规业务风险评估') }}</p></div>
+          <div><span>验收标准</span><p>{{ req.acceptance }}</p></div>
+        </div>
+        {% if req.get('quality_flags') %}
+        <div class="quality-flags">{% for flag in req.quality_flags %}<span>待澄清 · {{ flag }}</span>{% endfor %}</div>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="report-section" id="cases">
+  <div class="section-heading cases-heading">
+    <div><span class="eyebrow">TEST CASE LIBRARY</span><h2>测试用例库</h2><p>按风险确定优先级，并给出可落地的自动化建议。</p></div>
+    <span class="section-meta"><b id="visibleCount">{{ item.summary.case_count }}</b> / {{ item.summary.case_count }} 条</span>
+  </div>
+  <div class="case-toolbar">
+    <div class="search-box"><span aria-hidden="true">⌕</span><input id="caseSearch" type="search" placeholder="搜索用例、需求 ID 或模块" oninput="filterCases()"></div>
+    <select id="typeFilter" onchange="filterCases()"><option value="">全部类型</option><option>主流程</option><option>边界</option><option>异常</option><option>权限</option></select>
+    <select id="priorityFilter" onchange="filterCases()"><option value="">全部优先级</option><option>P0</option><option>P1</option><option>P2</option></select>
+    <select id="automationFilter" onchange="filterCases()"><option value="">全部自动化建议</option><option>建议自动化</option><option>接口优先</option><option>优先手工</option></select>
+    <button class="btn icon-btn" type="button" onclick="resetFilters()" title="重置筛选" aria-label="重置筛选">↻</button>
+  </div>
+  <div class="case-table-wrap">
+    <table class="case-table">
+      <thead><tr><th>优先级</th><th>用例 / 场景</th><th>类型</th><th>关联需求</th><th>自动化建议</th><th><span class="sr-only">展开</span></th></tr></thead>
+      <tbody id="caseBody">
+        {% for case in item.cases %}
+        <tr class="case-row" data-type="{{ case.type }}" data-priority="{{ case.priority }}" data-automation="{{ case.get('automation', '') }}" data-search="{{ case.id }} {{ case.req_id }} {{ case.get('module', '') }} {{ case.title }}">
+          <td><span class="priority {{ case.priority|lower }}">{{ case.priority }}</span></td>
+          <td><span class="case-id">{{ case.id }}</span><strong>{{ case.title }}</strong><small>{{ case.get('module', '') }}</small></td>
+          <td><span class="case-type type-{{ case.type }}">{{ case.type }}</span></td>
+          <td><a class="mono-tag" href="#{{ case.req_id }}">{{ case.req_id }}</a></td>
+          <td><span class="automation-label">{{ case.get('automation', '待评估') }}</span><small>{{ case.get('automation_reason', '') }}</small></td>
+          <td><button class="expand-btn" type="button" aria-label="展开用例详情" aria-expanded="false" onclick="toggleCase(this)">⌄</button></td>
+        </tr>
+        <tr class="case-detail-row" data-detail-for="{{ case.id }}" hidden>
+          <td colspan="6">
+            <div class="case-detail">
+              <div><span>前置条件</span><p>{{ case.precondition }}</p></div>
+              <div><span>执行步骤</span><ol>{% for step in case.steps %}<li>{{ step }}</li>{% endfor %}</ol></div>
+              <div><span>预期结果</span><p>{{ case.expected }}</p></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="table-empty" id="tableEmpty" hidden>没有符合当前筛选条件的用例。</div>
+  </div>
+</section>
+
+<section class="report-section" id="traceability">
+  <div class="section-heading">
+    <div><span class="eyebrow">TRACEABILITY</span><h2>需求覆盖追踪</h2><p>确保每条需求都有明确的测试场景与自动化承接。</p></div>
+    <span class="section-meta">覆盖率 {{ item.summary.coverage }}%</span>
+  </div>
+  <div class="trace-grid">
+    {% for req in item.requirements %}
+    {% set related = item.cases|selectattr('req_id', 'equalto', req.id)|list %}
+    <article class="trace-item" id="{{ req.id }}">
+      <div><span class="mono-tag">{{ req.id }}</span><b>{{ req.category }}</b></div>
+      <div class="trace-types">
+        {% for type_name in ['主流程','边界','异常','权限'] %}
+        {% set matched = related|selectattr('type', 'equalto', type_name)|list %}
+        <span class="{% if matched %}covered{% endif %}">{{ type_name }}</span>
+        {% endfor %}
+      </div>
+      <div class="trace-count"><strong>{{ related|length }}</strong><span>条用例</span></div>
+    </article>
+    {% endfor %}
+  </div>
+  <details class="source-disclosure">
+    <summary>查看原始需求文本</summary>
+    <pre>{{ item.source_text }}</pre>
+  </details>
+</section>
+{% endblock %}
